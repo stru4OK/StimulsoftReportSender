@@ -2,7 +2,7 @@
 {
     public static class Variables
     {
-        public const string fileReportConfig = "ReportConfig.jsn";
+        public const string fileReportConfig = "Config_cpp.jsn";
         public const string fileEmailConfig = "EmailConfig.jsn";
         public const string fileEmailRouting = "EmailRouting.txt";
         public const string fileIDEmailError = "IDEmailErrorList.txt";
@@ -25,6 +25,11 @@
 
         public const string divideByJuridical = "jur";
         public const string divideByClub = "club";
+
+        public const string flagConfig = "/config";
+        public const string flagEmailConfig = "/emailConfig";
+        public const string flagDate = "/date";
+        public const string flagPath = "/logsPath";
 
         public const string emailSMTP = "smtp.gmail.com";
         public const string emailSender = "helpdeskgroupbms@gmail.com";

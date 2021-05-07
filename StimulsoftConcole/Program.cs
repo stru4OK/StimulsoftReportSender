@@ -14,27 +14,25 @@ namespace StimulsoftConsole
         static int Main(string[] args)
         {
             string fileReportConfig = Variables.fileReportConfig;
+
             string fileEmailConfig = Variables.fileEmailConfig;
             string date = DateTime.Now.ToString("yyyy.MM.dd HH:mm");
             string logsPath = AppDomain.CurrentDomain.BaseDirectory;
 
-            ReportConfig ReportConfig = new ReportConfig();
-            EmailConfig EmailConfig = new EmailConfig();
-
-            for (int i = 0; i < args.Length; i = i + 2)
+            for (int i = 0; i < args.Length; i += 2)
             {
                 switch (args[i])
                 {
-                    case "/config":
+                    case Variables.flagConfig:
                         fileReportConfig = args[i + 1];
                         break;
-                    case "/emailConfig":
+                    case Variables.flagEmailConfig:
                         fileEmailConfig = args[i + 1];
                         break;
-                    case "/date":
+                    case Variables.flagDate:
                         date = args[i + 1];
                         break;
-                    case "/logsPath":
+                    case Variables.flagPath:
                         logsPath = args[i + 1];
 
                         if (!Directory.Exists(logsPath))
@@ -60,8 +58,8 @@ namespace StimulsoftConsole
 
             AdditionalFunc.CheckDriveSpace(logsPath);
 
-            ReportConfig = Config.ReadReportConfig(fileReportConfig);
-            EmailConfig = Config.ReadEmailConfig(fileEmailConfig);
+            ReportConfig ReportConfig = Config.ReadReportConfig(fileReportConfig);
+            EmailConfig EmailConfig = Config.ReadEmailConfig(fileEmailConfig);
 
             if (ReportConfig.Error != null)
             {
@@ -76,11 +74,7 @@ namespace StimulsoftConsole
 
         public static void Reports(string logsPath, ReportConfig ReportConfig, EmailConfig EmailConfig, string date)
         {
-            GenerateReportResult GenerateReport = new GenerateReportResult();
-            List<JuridicalData> JuridicalData = new List<JuridicalData>();
-            List<BonusClub> BonusClub = new List<BonusClub>();
-            List<JuridicalLimErr> JuridicalLimit = new List<JuridicalLimErr>();
-            List<JuridicalLimErr> JuridicalError = new List<JuridicalLimErr>();
+            List<JuridicalLimErr> JuridicalLimit = new List<JuridicalLimErr>(), JuridicalError = new List<JuridicalLimErr>();
 
             string jurIDEmailError, jurIDError, jurIDEmailLimit, jurIDLimit, email;
             int index, sendSuccess = 0;
@@ -97,12 +91,12 @@ namespace StimulsoftConsole
 
                                 JuridicalError.Clear();
                                 JuridicalLimit.Clear();
-                                jurIDEmailError = String.Empty;
-                                jurIDError = String.Empty;
-                                jurIDEmailLimit = String.Empty;
-                                jurIDLimit = String.Empty;
+                                jurIDEmailError = string.Empty;
+                                jurIDError = string.Empty;
+                                jurIDEmailLimit = string.Empty;
+                                jurIDLimit = string.Empty;
 
-                                JuridicalData = AdditionalFunc.GetJuridicalDataDB(ReportConfig.ProgrammLoyalty[pl].DataSource);
+                                List<JuridicalData> JuridicalData = AdditionalFunc.GetJuridicalDataDB(ReportConfig.ProgrammLoyalty[pl].DataSource);
 
                                 for (int i = 0; i < JuridicalData.Count; i++)
                                 {
@@ -110,7 +104,7 @@ namespace StimulsoftConsole
 
                                     if (ReportConfig.ProgrammLoyalty[pl].Reports[rp].LegacyCliId.Count == 0 | index >= 0)
                                     {
-                                        GenerateReport = Report(logsPath, 
+                                        GenerateReportResult GenerateReport = Report(logsPath,
                                             ReportConfig.ProgrammLoyalty[pl].DirectoryName,
                                             ReportConfig.ProgrammLoyalty[pl].DataSource,
                                             ReportConfig.ProgrammLoyalty[pl].Reports[rp].ReportPath,
@@ -136,7 +130,7 @@ namespace StimulsoftConsole
 
                                                     if (EmailConfig.SendLimit > sendSuccess)
                                                     {
-                                                        if (DispatchReport(logsPath, ReportConfig.ProgrammLoyalty[pl].DataSource, GenerateReport.ExportFiles, EmailConfig, JuridicalData[i].jurInnAndTitle, email) == 0)
+                                                        if (DispatchReport(logsPath, GenerateReport.ExportFiles, EmailConfig, JuridicalData[i].jurInnAndTitle, email) == 0)
                                                             sendSuccess++;
                                                         else
                                                             JuridicalError.Add(new JuridicalLimErr { jurID = JuridicalData[i].jurID, email = email });
@@ -166,7 +160,7 @@ namespace StimulsoftConsole
                                     {
                                         jurIDEmailError = jurIDEmailError + JuridicalError[i].jurID + " - " + JuridicalError[i].email + "\n";
 
-                                        if (String.IsNullOrEmpty(jurIDError))
+                                        if (string.IsNullOrEmpty(jurIDError))
                                             jurIDError = JuridicalError[i].jurID.ToString();
                                         else
                                             jurIDError = jurIDError + "," + JuridicalError[i].jurID;
@@ -182,7 +176,7 @@ namespace StimulsoftConsole
                                     {
                                         jurIDEmailLimit = jurIDEmailLimit + JuridicalLimit[i].jurID + " - " + JuridicalLimit[i].email + "\n";
 
-                                        if (String.IsNullOrEmpty(jurIDLimit))
+                                        if (string.IsNullOrEmpty(jurIDLimit))
                                             jurIDLimit = JuridicalLimit[i].jurID.ToString();
                                         else
                                             jurIDLimit = jurIDLimit + "," + JuridicalLimit[i].jurID;
@@ -194,11 +188,11 @@ namespace StimulsoftConsole
                                 break;
 
                             case Variables.divideByClub:
-                                BonusClub = AdditionalFunc.GetBonusClubDataDB(ReportConfig.ProgrammLoyalty[pl].DataSource);
+                                List<BonusClub> BonusClub = AdditionalFunc.GetBonusClubDataDB(ReportConfig.ProgrammLoyalty[pl].DataSource);
 
                                 for (int i = 0; i < BonusClub.Count; i++)
                                 {
-                                    GenerateReport = Report(logsPath,
+                                    Report(logsPath,
                                         ReportConfig.ProgrammLoyalty[pl].DirectoryName,
                                         ReportConfig.ProgrammLoyalty[pl].DataSource,
                                         ReportConfig.ProgrammLoyalty[pl].Reports[rp].ReportPath,
@@ -215,7 +209,7 @@ namespace StimulsoftConsole
                                 break;
 
                             default:
-                                GenerateReport = Report(logsPath,
+                                Report(logsPath,
                                     ReportConfig.ProgrammLoyalty[pl].DirectoryName,
                                     ReportConfig.ProgrammLoyalty[pl].DataSource,
                                     ReportConfig.ProgrammLoyalty[pl].Reports[rp].ReportPath,
@@ -316,21 +310,11 @@ namespace StimulsoftConsole
             List<string> ExportFiles = new List<string>();
 
             DateTime monday = AdditionalFunc.GetMonday(date);
-            string numWeek = AdditionalFunc.GetNumWeek(date);
-            string exportPath = String.Empty;
-            string exportFileName = String.Empty;
-            string emailTo = String.Empty;
-            string bonusClubFolder = "\\" + BonusClub.title;
+            string numWeek = AdditionalFunc.GetNumWeek(date), exportPath = string.Empty, exportFileName = string.Empty, bonusClubFolder = "\\" + BonusClub.title;
 
-            const string period = "period";
-            const string periodRequest = "periodRequest";
-            const string timeReport = "timeReport";
-            const string juridicalID = "juridicalID";
-            const string clubID = "clubID";
-            const string shiftHour = "shiftHour";
-            const string programDivide = "programDivide";
-            const string year = "year";
-            const string month = "month"; 
+            const string period = "period", periodRequest = "periodRequest", timeReport = "timeReport", 
+                juridicalID = "juridicalID", clubID = "clubID", shiftHour = "shiftHour", programDivide = "programDivide", 
+                year = "year", month = "month"; 
 
             StiReport report = new StiReport();
 
@@ -431,7 +415,7 @@ namespace StimulsoftConsole
                 report.Save(reportPath);
                 report.Render();
 
-                StiOptions.Export.Csv.ForcedSeparator = "|";
+                StiOptions.Export.Csv.ForcedSeparator = ";";
 
                 for (int i = 0; i < exportFormat.Length; i++)
                 {
@@ -569,7 +553,7 @@ namespace StimulsoftConsole
             }
         }
 
-        public static int DispatchReport(string logPath, string dataSource, List<string> exportFiles, EmailConfig EmailConfig, string jurInnAndTitle, string email)
+        public static int DispatchReport(string logPath, List<string> exportFiles, EmailConfig EmailConfig, string jurInnAndTitle, string email)
         {
             if (AdditionalFunc.SendMail(logPath, EmailConfig.Server, EmailConfig.EmailSender, EmailConfig.Login, EmailConfig.Password, email, EmailConfig.EmailCopy,
                 EmailConfig.Capture + " для " + jurInnAndTitle.Remove(0, jurInnAndTitle.IndexOf("-") + 1), EmailConfig.SignatureText, exportFiles) == 0)
