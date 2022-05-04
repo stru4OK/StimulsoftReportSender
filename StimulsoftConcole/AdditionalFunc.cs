@@ -9,45 +9,7 @@ namespace StimulsoftConsole
 {
     public class AdditionalFunc
     {
-        public static string DataBaseSQL(string oracleDbConnection, string sql)
-        {
-            string data = String.Empty;
-
-            OracleConnection conn = new OracleConnection(oracleDbConnection);
-
-            try
-            {
-                conn.Open();
-                OracleCommand dbcmd = conn.CreateCommand();
-                dbcmd.CommandText = sql;
-                OracleDataReader reader = dbcmd.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    data = (string)reader["data"].ToString();
-                }
-
-                reader.Close();
-                reader = null;
-                
-                return data;
-            }
-
-            catch (Exception ex)
-            {
-                LogFile(Variables.fileError, oracleDbConnection.Remove(oracleDbConnection.IndexOf(";")) + "\n\n" + ex.ToString(), false);
-                return data;
-            }
-            finally
-            {
-                OracleConnection.ClearPool(conn);
-                conn.Dispose();
-                conn.Close();
-                conn = null;
-            }
-        }
-
-        public static List<JuridicalData> GetJuridicalDataDB(string oracleDBConnection)
+        public static List<JuridicalData> GetJuridicalDataDB(string oracleDBConnection, string logFilePath)
         {
             List<JuridicalData> JD = new List<JuridicalData>();
 
@@ -58,12 +20,14 @@ namespace StimulsoftConsole
                 conn.Open();
                 OracleCommand dbcmd = conn.CreateCommand();
 
-                dbcmd.CommandText = "select replace((case when inn is not null then inn ||'-'|| (case when lc.title is not null then lc.title else rp.title end) "
-                    + "else (case when lc.title is not null then lc.title else rp.title end) end), '\"') as jurInnAndTitle, "
-                    + "lc.inn, (case when lc.title is not null then lc.title else rp.title end) as jurTitle, lc.legacy_cli_id as jurID, "
-                    + "lc.email from legacy_clients lc join retail_points rp on lc.legacy_cli_id = rp.legacy_cli_id "
-                    + "where lower(lc.agent_agreement) not like '%(раст)%' "
-                    + "group by lc.inn, (case when lc.title is not null then lc.title else rp.title end), lc.legacy_cli_id, lc.email order by 3";
+                dbcmd.CommandText = "select replace((case when inn is not null then inn ||'-'|| (case when lc.title is not null then lc.title else rp.title end) " +
+                    "else (case when lc.title is not null then lc.title else rp.title end) end), '\"') as jurInnAndTitle, " +
+                    "lc.inn, (case when lc.title is not null then lc.title else rp.title end) as jurTitle, lc.legacy_cli_id as jurID, lc.email " +
+                    "from legacy_clients lc " +
+                    "join retail_points rp on lc.legacy_cli_id = rp.legacy_cli_id " +
+                    "where (lower(lc.agent_agreement) not like '%(раст)%' or lc.agent_agreement is null) and lc.is_delete = 0" +
+                    "group by lc.inn, (case when lc.title is not null then lc.title else rp.title end), lc.legacy_cli_id, lc.email " +
+                    "order by 3";
 
                 OracleDataReader reader = dbcmd.ExecuteReader();
                 while (reader.HasRows)
@@ -90,7 +54,7 @@ namespace StimulsoftConsole
 
             catch (Exception ex)
             {
-                Console.WriteLine(DateTime.Now + ":\n" + ex.ToString() + "\n\n");
+                LogFile(logFilePath + "\\" + Variables.fileError, oracleDBConnection.Remove(oracleDBConnection.IndexOf(";")) + "\n\n" + ex.ToString(), false);
                 return JD;
             }
             finally
@@ -102,7 +66,7 @@ namespace StimulsoftConsole
             }
         }
 
-        public static List<BonusClub> GetBonusClubDataDB(string oracleDBConnection)
+        public static List<BonusClub> GetBonusClubDataDB(string oracleDBConnection, string logFilePath)
         {
             List<BonusClub> BC = new List<BonusClub>();
 
@@ -137,7 +101,7 @@ namespace StimulsoftConsole
 
             catch (Exception ex)
             {
-                Console.WriteLine(DateTime.Now + ":\n" + ex.ToString() + "\n\n");
+                LogFile(logFilePath + "\\" + Variables.fileError, oracleDBConnection.Remove(oracleDBConnection.IndexOf(";")) + "\n\n" + ex.ToString(), false);
                 return BC;
             }
             finally
@@ -157,14 +121,14 @@ namespace StimulsoftConsole
 
             StreamWriter files = new StreamWriter(logFilePath, true);
 
-            files.Write(DateTime.Now.ToString("yyyy.MM.dd HH:mm:ss") + " : \n" + text + "\n\n");
+            files.Write(DateTime.Now.ToString("yyyy.MM.dd HH:mm:ss") + ":\n" + text + "\n\n");
 
             files.Flush();
             files.Close();
             return 0;
         }
 
-        public static int CheckDriveSpace(string logsPath)
+        public static int CheckDriveSpace(string logFilePath)
         {
             try
             {
@@ -174,19 +138,20 @@ namespace StimulsoftConsole
                 if (d.IsReady == true)
                     if (d.AvailableFreeSpace * 100 / d.TotalSize < 10)
                     {
-                        LogFile(logsPath + "\\" + Variables.fileError, "Свободного дискового пространства осталось меньше 10%", true);
+                        LogFile(logFilePath + "\\" + Variables.fileError, "Свободного дискового пространства осталось меньше 10%", true);
                         return 1;
                     }
+
                 return 0;
             }
             catch (Exception ex)
             {
-                LogFile(logsPath + "\\" + Variables.fileError, ex.ToString(), true);
+                LogFile(logFilePath + "\\" + Variables.fileError, ex.ToString(), true);
                 return 1;
             }
         }
 
-        public static int SendMail(string logsPath, string server, string emailSender, string login, string password, 
+        public static int SendMail(string logFilePath, string server, string emailSender, string login, string password, 
             string mailTo, string emailCopy, string caption, string signatureText, List<string> attachFiles)
         {
             try
@@ -250,7 +215,7 @@ namespace StimulsoftConsole
             }
             catch (Exception ex)
             {
-                LogFile(logsPath + "\\" + Variables.fileError, ex.ToString(), false);
+                LogFile(logFilePath, ex.ToString(), false);
                 return 1;
             }
         }

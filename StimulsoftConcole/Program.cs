@@ -17,7 +17,7 @@ namespace StimulsoftConsole
 
             string fileEmailConfig = Variables.fileEmailConfig;
             string date = DateTime.Now.ToString("yyyy.MM.dd HH:mm");
-            string logsPath = AppDomain.CurrentDomain.BaseDirectory;
+            string logFilePath = AppDomain.CurrentDomain.BaseDirectory;
 
             for (int i = 0; i < args.Length; i += 2)
             {
@@ -33,10 +33,10 @@ namespace StimulsoftConsole
                         date = args[i + 1];
                         break;
                     case Variables.flagPath:
-                        logsPath = args[i + 1];
+                        logFilePath = args[i + 1];
 
-                        if (!Directory.Exists(logsPath))
-                            Directory.CreateDirectory(logsPath);
+                        if (!Directory.Exists(logFilePath))
+                            Directory.CreateDirectory(logFilePath);
 
                         break;
                     default:
@@ -53,26 +53,29 @@ namespace StimulsoftConsole
 
             Console.WriteLine("StimulsoftConsole v." + Assembly.GetExecutingAssembly().GetName().Version.ToString() + " "
                 + Environment.GetEnvironmentVariable("PROCESSOR_ARCHITECTURE").ToString() + " " + DateTime.Now + "\n");
-            AdditionalFunc.LogFile(logsPath + "\\" + Variables.fileLog, "StimulsoftConsole v." + Assembly.GetExecutingAssembly().GetName().Version.ToString() + " "
+            AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileLog, "StimulsoftConsole v." + Assembly.GetExecutingAssembly().GetName().Version.ToString() + " "
                 + Environment.GetEnvironmentVariable("PROCESSOR_ARCHITECTURE").ToString() + " " + DateTime.Now + "\n", false);
 
-            AdditionalFunc.CheckDriveSpace(logsPath);
+            AdditionalFunc.CheckDriveSpace(logFilePath);
+
+            //date = "2021.05.24";
+            //fileReportConfig = "RNiPB_Brs.jsn";
 
             ReportConfig ReportConfig = Config.ReadReportConfig(fileReportConfig);
             EmailConfig EmailConfig = Config.ReadEmailConfig(fileEmailConfig);
 
             if (ReportConfig.Error != null)
             {
-                AdditionalFunc.LogFile(logsPath + "\\" + Variables.fileError, ReportConfig.Error, false);
+                AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileError, ReportConfig.Error + "\n" + EmailConfig.Error, false);
                 return 1;
             }
 
-            Reports(logsPath, ReportConfig, EmailConfig, date);
+            Reports(logFilePath, ReportConfig, EmailConfig, date);
 
             return 0;
         }
 
-        public static void Reports(string logsPath, ReportConfig ReportConfig, EmailConfig EmailConfig, string date)
+        public static void Reports(string logFilePath, ReportConfig ReportConfig, EmailConfig EmailConfig, string date)
         {
             List<JuridicalLimErr> JuridicalLimit = new List<JuridicalLimErr>(), JuridicalError = new List<JuridicalLimErr>();
 
@@ -96,7 +99,13 @@ namespace StimulsoftConsole
                                 jurIDEmailLimit = string.Empty;
                                 jurIDLimit = string.Empty;
 
-                                List<JuridicalData> JuridicalData = AdditionalFunc.GetJuridicalDataDB(ReportConfig.ProgrammLoyalty[pl].DataSource);
+                                List<JuridicalData> JuridicalData = AdditionalFunc.GetJuridicalDataDB(ReportConfig.ProgrammLoyalty[pl].DataSource, logFilePath);
+
+                                if (JuridicalData.Count == 0)
+                                {
+                                    Console.WriteLine("Were found 0 legacy clients");
+                                    break;
+                                }
 
                                 for (int i = 0; i < JuridicalData.Count; i++)
                                 {
@@ -104,7 +113,7 @@ namespace StimulsoftConsole
 
                                     if (ReportConfig.ProgrammLoyalty[pl].Reports[rp].LegacyCliId.Count == 0 | index >= 0)
                                     {
-                                        GenerateReportResult GenerateReport = Report(logsPath,
+                                        GenerateReportResult GenerateReport = Report(logFilePath,
                                             ReportConfig.ProgrammLoyalty[pl].DirectoryName,
                                             ReportConfig.ProgrammLoyalty[pl].DataSource,
                                             ReportConfig.ProgrammLoyalty[pl].Reports[rp].ReportPath,
@@ -126,11 +135,11 @@ namespace StimulsoftConsole
 
                                                 if (!string.IsNullOrEmpty(email))
                                                 {
-                                                    AdditionalFunc.LogFile(logsPath + "\\" + Variables.fileEmailRouting, "Найдена почта " + email + " по ЮЛ " + JuridicalData[i].jurInnAndTitle + ".", false);
+                                                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileEmailRouting, "Найдена почта " + email + " по ЮЛ " + JuridicalData[i].jurInnAndTitle + ".", false);
 
                                                     if (EmailConfig.SendLimit > sendSuccess)
                                                     {
-                                                        if (DispatchReport(logsPath, GenerateReport.ExportFiles, EmailConfig, JuridicalData[i].jurInnAndTitle, email) == 0)
+                                                        if (DispatchReport(logFilePath, GenerateReport.ExportFiles, EmailConfig, JuridicalData[i].jurInnAndTitle, email) == 0)
                                                             sendSuccess++;
                                                         else
                                                             JuridicalError.Add(new JuridicalLimErr { jurID = JuridicalData[i].jurID, email = email });
@@ -140,13 +149,13 @@ namespace StimulsoftConsole
                                                     }
                                                     else
                                                     {
-                                                        AdditionalFunc.LogFile(logsPath + "\\" + Variables.fileEmailRouting, "Превышен лимит на отправку сообщений.", false);
+                                                        AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileEmailRouting, "Превышен лимит на отправку сообщений.", false);
 
                                                         JuridicalLimit.Add(new JuridicalLimErr { jurID = JuridicalData[i].jurID, email = email });
                                                     }
                                                 }
                                                 else
-                                                    AdditionalFunc.LogFile(logsPath + "\\" + Variables.fileEmailRouting, "Не найдена почта по ЮЛ " + JuridicalData[i].jurInnAndTitle + ".", false);
+                                                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileEmailRouting, "Не найдена почта по ЮЛ " + JuridicalData[i].jurInnAndTitle + ".", false);
                                             }
                                         }
                                         else
@@ -166,8 +175,8 @@ namespace StimulsoftConsole
                                             jurIDError = jurIDError + "," + JuridicalError[i].jurID;
                                     }
 
-                                    AdditionalFunc.LogFile(logsPath + "\\" + Variables.fileIDEmailError, jurIDEmailError, false);
-                                    AdditionalFunc.LogFile(logsPath + "\\" + Variables.fileIDError, jurIDError, false);
+                                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileIDEmailError, jurIDEmailError, false);
+                                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileIDError, jurIDError, false);
                                 }
 
                                 if (JuridicalLimit.Count != 0)
@@ -182,17 +191,17 @@ namespace StimulsoftConsole
                                             jurIDLimit = jurIDLimit + "," + JuridicalLimit[i].jurID;
                                     }
 
-                                    AdditionalFunc.LogFile(logsPath + "\\" + Variables.fileIDEmailLimit, jurIDEmailLimit, false);
-                                    AdditionalFunc.LogFile(logsPath + "\\" + Variables.fileIDLimit, jurIDLimit, false);
+                                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileIDEmailLimit, jurIDEmailLimit, false);
+                                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileIDLimit, jurIDLimit, false);
                                 }
                                 break;
 
                             case Variables.divideByClub:
-                                List<BonusClub> BonusClub = AdditionalFunc.GetBonusClubDataDB(ReportConfig.ProgrammLoyalty[pl].DataSource);
+                                List<BonusClub> BonusClub = AdditionalFunc.GetBonusClubDataDB(ReportConfig.ProgrammLoyalty[pl].DataSource, logFilePath);
 
                                 for (int i = 0; i < BonusClub.Count; i++)
                                 {
-                                    Report(logsPath,
+                                    Report(logFilePath,
                                         ReportConfig.ProgrammLoyalty[pl].DirectoryName,
                                         ReportConfig.ProgrammLoyalty[pl].DataSource,
                                         ReportConfig.ProgrammLoyalty[pl].Reports[rp].ReportPath,
@@ -209,7 +218,7 @@ namespace StimulsoftConsole
                                 break;
 
                             default:
-                                Report(logsPath,
+                                Report(logFilePath,
                                     ReportConfig.ProgrammLoyalty[pl].DirectoryName,
                                     ReportConfig.ProgrammLoyalty[pl].DataSource,
                                     ReportConfig.ProgrammLoyalty[pl].Reports[rp].ReportPath,
@@ -249,10 +258,10 @@ namespace StimulsoftConsole
                 BonusClub, date);
         }
 
-        public static GenerateReportResult Report(string logPath, string directoryName, string dataSource, string reportPath, string exportPath, string reportName, string reportPeriod, string timeFrom,
+        public static GenerateReportResult Report(string logFilePath, string directoryName, string dataSource, string reportPath, string exportPath, string reportName, string reportPeriod, string timeFrom,
             string timeTo, string[] exportFormat, string byProg, JuridicalData JuridicalData, BonusClub BonusClub, string date)
         {
-            GenerateReportResult GenerateReportResult = GenerateReport(logPath, directoryName, dataSource, reportPath, AppDomain.CurrentDomain.BaseDirectory + "\\" + exportPath + "\\" + reportName, reportPeriod, 
+            GenerateReportResult GenerateReportResult = GenerateReport(logFilePath, directoryName, dataSource, reportPath, AppDomain.CurrentDomain.BaseDirectory + "\\" + exportPath + "\\" + reportName, reportPeriod, 
                 timeFrom, timeTo, exportFormat, byProg, JuridicalData, BonusClub, date);
 
             if (!string.IsNullOrEmpty(JuridicalData.jurInnAndTitle) & JuridicalData.jurID != 0)
@@ -261,14 +270,14 @@ namespace StimulsoftConsole
                 {
                     Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + " В программе " + directoryName + " " + reportName + " за " + reportPeriod + " для ЮЛ "
                         + JuridicalData.jurInnAndTitle + " сформирован!");
-                    AdditionalFunc.LogFile(logPath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " для ЮЛ "
+                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " для ЮЛ "
                         + JuridicalData.jurInnAndTitle + " сформирован!", false);
                 }
                 else
                 {
                     Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + " В программе " + directoryName + " " + reportName + " за " + reportPeriod + " для ЮЛ "
                         + JuridicalData.jurInnAndTitle + " НЕ сформирован!");
-                    AdditionalFunc.LogFile(logPath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " для ЮЛ "
+                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " для ЮЛ "
                         + JuridicalData.jurInnAndTitle + " НЕ сформирован!", false);
                 }
             }
@@ -277,12 +286,12 @@ namespace StimulsoftConsole
                 if (GenerateReportResult.generateResult == 0)
                 {
                     Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + " В программе " + BonusClub.title + " " + reportName + " за " + reportPeriod + " сформирован!");
-                    AdditionalFunc.LogFile(logPath + "\\" + Variables.fileLog, "В программе " + BonusClub.title + " отчет " + reportName + " за " + reportPeriod + " сформирован!", false);
+                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileLog, "В программе " + BonusClub.title + " отчет " + reportName + " за " + reportPeriod + " сформирован!", false);
                 }
                 else
                 {
                     Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + " В программе " + directoryName + " " + reportName + " за " + reportPeriod + " НЕ сформирован!");
-                    AdditionalFunc.LogFile(logPath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " НЕ сформирован!", false);
+                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " НЕ сформирован!", false);
                 }
             }
             else
@@ -290,19 +299,19 @@ namespace StimulsoftConsole
                 if (GenerateReportResult.generateResult == 0)
                 {
                     Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + " В программе " + directoryName + " " + reportName + " за " + reportPeriod + " сформирован!");
-                    AdditionalFunc.LogFile(logPath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " сформирован!", false);
+                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " сформирован!", false);
                 }
                 else
                 {
                     Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + " В программе " + directoryName + " " + reportName + " за " + reportPeriod + " НЕ сформирован!");
-                    AdditionalFunc.LogFile(logPath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " НЕ сформирован!", false);
+                    AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileLog, "В программе " + directoryName + " отчет " + reportName + " за " + reportPeriod + " НЕ сформирован!", false);
                 }
             }
 
             return GenerateReportResult;
         }
 
-        public static GenerateReportResult GenerateReport(string logPath, string directoryName, string dataSource, string reportPath, string reportName, string reportPeriod,
+        public static GenerateReportResult GenerateReport(string logFilePath, string directoryName, string dataSource, string reportPath, string reportName, string reportPeriod,
             string timeFrom, string timeTo, string[] exportFormat, string byProg, JuridicalData JuridicalData, BonusClub BonusClub, string date)
         {
             StiExportFormat StiExportFormat = StiExportFormat.Pdf;
@@ -539,7 +548,7 @@ namespace StimulsoftConsole
             }
             catch (Exception ex)
             {
-                AdditionalFunc.LogFile(logPath + "\\" + Variables.fileError, "Отчет: " + reportPath + "\n\n" + "Период: " + reportPeriod + "\n\n" + "ЮЛ: " + JuridicalData.jurInnAndTitle 
+                AdditionalFunc.LogFile(logFilePath + "\\" + Variables.fileError, "Отчет: " + reportPath + "\n\n" + "Период: " + reportPeriod + "\n\n" + "ЮЛ: " + JuridicalData.jurInnAndTitle 
                     + " " + JuridicalData.jurID + "\n\n" + "БД: " + dataSource.Remove(dataSource.IndexOf(";")) + "\n\n" + ex.Message, true);
                 GenerateReportResult.generateResult = 1;
 
@@ -555,7 +564,7 @@ namespace StimulsoftConsole
 
         public static int DispatchReport(string logPath, List<string> exportFiles, EmailConfig EmailConfig, string jurInnAndTitle, string email)
         {
-            if (AdditionalFunc.SendMail(logPath, EmailConfig.Server, EmailConfig.EmailSender, EmailConfig.Login, EmailConfig.Password, email, EmailConfig.EmailCopy,
+            if (AdditionalFunc.SendMail(logPath + "\\" + Variables.fileError, EmailConfig.Server, EmailConfig.EmailSender, EmailConfig.Login, EmailConfig.Password, email, EmailConfig.EmailCopy,
                 EmailConfig.Capture + " для " + jurInnAndTitle.Remove(0, jurInnAndTitle.IndexOf("-") + 1), EmailConfig.SignatureText, exportFiles) == 0)
             {
                 AdditionalFunc.LogFile(logPath + "\\" + Variables.fileEmailRouting, "Письмо с отчетами адресату " + email + " (" + jurInnAndTitle + ") успешно отправлено!", false);

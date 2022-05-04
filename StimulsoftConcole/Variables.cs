@@ -2,7 +2,7 @@
 {
     public static class Variables
     {
-        public const string fileReportConfig = "Config_cpp.jsn";
+        public const string fileReportConfig = "ReportConfig.jsn";
         public const string fileEmailConfig = "EmailConfig.jsn";
         public const string fileEmailRouting = "EmailRouting.txt";
         public const string fileIDEmailError = "IDEmailErrorList.txt";
